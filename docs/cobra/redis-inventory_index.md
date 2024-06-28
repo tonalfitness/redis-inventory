@@ -10,16 +10,20 @@ Keep in mind that some options are scanning (index) options that cannot be redef
 redis-inventory index redis://[:<password>@]<host>:<port>[/<dbIndex>] [flags]
 ```
 
+Multiple addresses might be passed separated by commas.
+
 ### Options
 
 ```
   -h, --help                help for index
+  -f, --indexFile string    Output location for the index file (default "<tmp>/redis-inventory.json")
   -l, --logLevel string     Level of logs to be displayed (default "info")
   -m, --maxChildren int     Maximum children node can have before start aggregating (default 10)
   -k, --pattern string      Glob pattern limiting the keys to be aggregated (default "*")
   -c, --scanCount int       Number of keys to be scanned in one iteration (argument of scan command) (default 1000)
   -s, --separators string   Symbols that logically separate levels of the key (default ":")
   -t, --throttle int        Throttle: number of nanoseconds to sleep between keys
+  -w, --workers int         Number of workers retrieving key info in parallel (default 1)
 ```
 
 ### SEE ALSO

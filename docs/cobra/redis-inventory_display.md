@@ -14,8 +14,9 @@ redis-inventory display [flags]
 
 ```
   -h, --help                   help for display
+  -f, --indexFile string       Index file location (default "<tmp>/redis-inventory.json")
   -l, --logLevel string        Level of logs to be displayed (default "info")
-  -o, --output string          One of possible outputs: json, jsonp, table (default "table")
+  -o, --output string          One of possible outputs: table, json, chart (default "table")
   -p, --output-params string   Parameters specific for output type
 ```
 

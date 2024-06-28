@@ -1,6 +1,7 @@
 package renderer
 
 import (
+	"cmp"
 	"code.cloudfoundry.org/bytefmt"
 	"fmt"
 	"github.com/hetiansu5/urlquery"
@@ -9,6 +10,7 @@ import (
 	"github.com/obukhov/redis-inventory/src/trie"
 	"golang.org/x/text/message"
 	"io"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -38,6 +40,7 @@ type TableRendererParams struct {
 	Padding           string `query:"padding"`
 	PaddingSpaceCount int    `query:"padSpaces"`
 	HumanReadable     bool   `query:"human"`
+	SortBySize        bool   `query:"sortBySize"`
 	indent            string
 }
 
@@ -66,11 +69,32 @@ func (o TableRenderer) Render(root *trie.Node) error {
 
 func (o TableRenderer) appendLevel(t table.Writer, node *trie.Node, level int, prefix string) {
 	childKeys := make([]string, 0, len(node.Children))
-	for k := range node.Children {
-		childKeys = append(childKeys, k)
+
+	if o.params.SortBySize {
+		type keySize struct {
+			key  string
+			size int64
+		}
+
+		children := make([]keySize, 0, len(node.Children))
+		for k, n := range node.Children {
+			if !n.HasAggregator() {
+				n = n.FindNextAggregatedNode()
+			}
+			children = append(children, keySize{key: k, size: n.Aggr.Params[trie.BytesSize]})
+		}
+
+		slices.SortFunc(children, func(a, b keySize) int { return cmp.Compare(b.size, a.size) })
+		for _, c := range children {
+			childKeys = append(childKeys, c.key)
+		}
+	} else {
+		for k := range node.Children {
+			childKeys = append(childKeys, k)
+		}
+		sort.Strings(childKeys)
 	}
 
-	sort.Strings(childKeys)
 	for _, key := range childKeys {
 		childNode := node.Children[key]
 		nextLevel := level + 1

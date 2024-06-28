@@ -12,10 +12,11 @@ type ScanOptions struct {
 	Pattern   string
 	ScanCount int
 	Throttle  int
+	Workers   int
 }
 
 // NewRedisService creates RedisService
-func NewRedisService(client radix.Client) RedisService {
+func NewRedisService(client *radix.Cluster) RedisService {
 	return RedisService{
 		client: client,
 	}
@@ -23,10 +24,10 @@ func NewRedisService(client radix.Client) RedisService {
 
 // RedisService implementation for iteration over redis
 type RedisService struct {
-	client radix.Client
+	client *radix.Cluster
 }
 
-// ScanKeys scans keys asynchroniously and sends them to the returned channel
+// ScanKeys scans keys asynchronously and sends them to the returned channel
 func (s RedisService) ScanKeys(ctx context.Context, options ScanOptions) <-chan string {
 	resultChan := make(chan string)
 
@@ -42,7 +43,7 @@ func (s RedisService) ScanKeys(ctx context.Context, options ScanOptions) <-chan 
 	go func() {
 		defer close(resultChan)
 		var key string
-		radixScanner := scanOpts.New(s.client)
+		radixScanner := scanOpts.NewMulti(s.client)
 		for radixScanner.Next(ctx, &key) {
 			resultChan <- key
 			if options.Throttle > 0 {

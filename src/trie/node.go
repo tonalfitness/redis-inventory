@@ -8,7 +8,7 @@ func NewNode() *Node {
 	}
 }
 
-// Node node of the trie
+// Node of the trie
 type Node struct {
 	Children              map[string]*Node `json:"Children,omitempty"`
 	Aggr                  *Aggregator      `json:"Values,omitempty"`
