@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"context"
+	"sync"
 
 	"github.com/obukhov/redis-inventory/src/adapter"
 	"github.com/obukhov/redis-inventory/src/trie"
@@ -38,24 +39,51 @@ func (s *RedisScanner) Scan(options adapter.ScanOptions, result *trie.Trie) {
 		totalCount = s.getKeysCount()
 	}
 
+	safeResult := newThreadSafeResult(result)
+	var wg sync.WaitGroup
+
 	s.scanProgress.Start(totalCount)
-	for key := range s.redisService.ScanKeys(context.Background(), options) {
-		s.scanProgress.Increment()
-		res, err := s.redisService.GetMemoryUsage(context.Background(), key)
-		if err != nil {
-			s.logger.Error().Err(err).Msgf("Error dumping key %s", key)
-			continue
-		}
+	keys := s.redisService.ScanKeys(context.Background(), options)
+	for worker := 0; worker < options.Workers; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for key := range keys {
+				res, err := s.redisService.GetMemoryUsage(context.Background(), key)
+				if err != nil {
+					s.logger.Error().Err(err).Msgf("Error dumping key %s", key)
+					continue
+				}
 
-		result.Add(
-			key,
-			trie.ParamValue{Param: trie.BytesSize, Value: res},
-			trie.ParamValue{Param: trie.KeysCount, Value: 1},
-		)
+				safeResult.Add(
+					key,
+					trie.ParamValue{Param: trie.BytesSize, Value: res},
+					trie.ParamValue{Param: trie.KeysCount, Value: 1},
+				)
 
-		s.logger.Debug().Msgf("Dump %s value: %d", key, res)
+				s.logger.Debug().Msgf("Dump %s value: %d", key, res)
+				s.scanProgress.Increment()
+			}
+			s.logger.Info().Msgf("Worker %d done", worker+1)
+		}()
 	}
+	wg.Wait()
 	s.scanProgress.Stop()
+}
+
+type threadSafeResult struct {
+	mutex  sync.Mutex
+	result *trie.Trie
+}
+
+func newThreadSafeResult(result *trie.Trie) *threadSafeResult {
+	return &threadSafeResult{result: result}
+}
+
+func (r *threadSafeResult) Add(key string, paramValues ...trie.ParamValue) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	r.result.Add(key, paramValues...)
 }
 
 func (s *RedisScanner) getKeysCount() int64 {

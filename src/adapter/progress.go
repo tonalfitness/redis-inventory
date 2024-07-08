@@ -33,7 +33,10 @@ type PrettyProgressWriter struct {
 // Tracker is abstraction over libraries "Tracker" struct
 type Tracker interface {
 	Increment(value int64)
+	IsDone() bool
 	MarkAsDone()
+	SetValue(value int64)
+	Value() int64
 }
 
 func (p *PrettyProgressWriter) init(output io.Writer) {
@@ -49,7 +52,7 @@ func (p *PrettyProgressWriter) init(output io.Writer) {
 	p.pw.SetSortBy(progress.SortByPercentDsc)
 	p.pw.SetStyle(progress.StyleDefault)
 	p.pw.SetTrackerPosition(progress.PositionRight)
-	p.pw.SetUpdateFrequency(time.Millisecond * 10)
+	p.pw.SetUpdateFrequency(250 * time.Millisecond)
 	p.pw.Style().Colors = progress.StyleColorsExample
 	p.pw.Style().Options.PercentFormat = "%4.1f%%"
 	p.pw.SetOutputWriter(output)
@@ -66,6 +69,13 @@ func (p *PrettyProgressWriter) Start(total int64) {
 
 // Increment increments progress
 func (p *PrettyProgressWriter) Increment() {
+	// In case we overflow the estimated total, continue tracking the progress without a total
+	if p.tracker.IsDone() {
+		overflowTracker := &progress.Tracker{Message: "Scanning keys", Total: 0, Units: progress.UnitsDefault}
+		overflowTracker.SetValue(p.tracker.Value())
+		p.pw.AppendTracker(overflowTracker)
+		p.tracker = overflowTracker
+	}
 	p.tracker.Increment(1)
 }
 

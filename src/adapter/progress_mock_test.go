@@ -17,8 +17,22 @@ func (t *TrackerMock) Increment(value int64) {
 	t.Called(value)
 }
 
+func (t *TrackerMock) IsDone() bool {
+	args := t.Called()
+	return args.Bool(0)
+}
+
 func (t *TrackerMock) MarkAsDone() {
 	t.Called()
+}
+
+func (t *TrackerMock) SetValue(value int64) {
+	t.Called(value)
+}
+
+func (t *TrackerMock) Value() int64 {
+	args := t.Called()
+	return args.Get(0).(int64)
 }
 
 // Progress mock

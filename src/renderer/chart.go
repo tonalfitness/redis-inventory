@@ -166,7 +166,7 @@ func (o anychartRenderer) render(result Node) (string, error) {
 				chart.labels().position("radial");
 
 				// configure labels
-				chart.labels().format("{%name}");
+				chart.labels().format("{%name}\n{%valueHuman}");
 
 				// configure tooltips
 				chart.tooltip().useHtml(true);

@@ -10,6 +10,7 @@ import (
 	"github.com/obukhov/redis-inventory/src/trie"
 	"github.com/spf13/cobra"
 	"os"
+	"strings"
 )
 
 var indexCmd = &cobra.Command{
@@ -21,7 +22,7 @@ var indexCmd = &cobra.Command{
 		consoleLogger := logger.NewConsoleLogger(logLevel)
 		consoleLogger.Info().Msg("Start indexing")
 
-		clientSource, err := (radix.PoolConfig{}).New(context.Background(), "tcp", args[0])
+		clientSource, err := (radix.ClusterConfig{}).New(context.Background(), strings.Split(args[0], ","))
 		if err != nil {
 			consoleLogger.Fatal().Err(err).Msg("Can't create redis client")
 		}
@@ -38,11 +39,15 @@ var indexCmd = &cobra.Command{
 				ScanCount: scanCount,
 				Pattern:   pattern,
 				Throttle:  throttleNs,
+				Workers:   workers,
 			},
 			resultTrie,
 		)
 
-		indexFileName := os.TempDir() + "/redis-inventory.json"
+		indexFileName := indexFile
+		if indexFileName == "" {
+			indexFileName = os.TempDir() + "/redis-inventory.json"
+		}
 		f, err := os.Create(indexFileName)
 		if err != nil {
 			consoleLogger.Fatal().Err(err).Msg("Can't create renderer")
@@ -61,10 +66,12 @@ var indexCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(indexCmd)
+	indexCmd.Flags().StringVarP(&indexFile, "indexFile", "f", "", "Output location for the index file (default <tmp>/redis-inventory.json)")
 	indexCmd.Flags().StringVarP(&logLevel, "logLevel", "l", "info", "Level of logs to be displayed")
 	indexCmd.Flags().StringVarP(&separators, "separators", "s", ":", "Symbols that logically separate levels of the key")
 	indexCmd.Flags().IntVarP(&maxChildren, "maxChildren", "m", 10, "Maximum children node can have before start aggregating")
 	indexCmd.Flags().StringVarP(&pattern, "pattern", "k", "*", "Glob pattern limiting the keys to be aggregated")
 	indexCmd.Flags().IntVarP(&scanCount, "scanCount", "c", 1000, "Number of keys to be scanned in one iteration (argument of scan command)")
 	indexCmd.Flags().IntVarP(&throttleNs, "throttle", "t", 0, "Throttle: number of nanoseconds to sleep between keys")
+	indexCmd.Flags().IntVarP(&workers, "workers", "w", 1, "Number of workers retrieving key info in parallel")
 }

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"os"
+	"strings"
 
 	"github.com/mediocregopher/radix/v4"
 	"github.com/obukhov/redis-inventory/src/adapter"
@@ -22,7 +23,7 @@ var scanCmd = &cobra.Command{
 		consoleLogger := logger.NewConsoleLogger(logLevel)
 		consoleLogger.Info().Msg("Start scanning")
 
-		clientSource, err := (radix.PoolConfig{}).New(context.Background(), "tcp", args[0])
+		clientSource, err := (radix.ClusterConfig{}).New(context.Background(), strings.Split(args[0], ","))
 		if err != nil {
 			consoleLogger.Fatal().Err(err).Msg("Can't create redis client")
 		}
